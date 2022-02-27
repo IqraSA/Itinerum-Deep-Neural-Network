@@ -7,6 +7,7 @@ Please find the 'points.csv' and 'labels.csv' on Github and import them into a P
 change the code to be able to read all the data from csv files directly.
 """
 
+
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tf_utils import load_dataset, random_mini_batches, convert_to_one_hot, predict
@@ -32,8 +33,7 @@ num_channels = 4
 
 # .repeat' function is used)
 # the default is 65 layers (without the output layer)
-layer_nods = np.repeat([k for k in range(num_channels*seg_size,0,-5)],2).tolist()
-    # [seg_size, 40, 10]
+layer_nods = np.repeat(list(range(num_channels*seg_size,0,-5)), 2).tolist()
 # np.repeat([k for k in range(seg_size,5,-10)],1).tolist()
 # number of classes, i.e. number of modes (here: 'walk','bike','car','public transit','car and public transit')
 
@@ -102,7 +102,7 @@ def initialize_parameters(layer_nods, num_classes, seg_size):
     parameters = {}
 
     for index, current_layer in enumerate(layer_nods):
-        if index == 0 or index == len(layer_nods):
+        if index in [0, len(layer_nods)]:
             previous_layer = current_layer
             continue
         # declare 'W's
@@ -136,7 +136,7 @@ def forward_propagation(X, parameters, keep_prob):
 
     # Retrieve the parameters from the dictionary "parameters"
     for index, current_layer in enumerate(layer_nods):
-        if index == 0 or index == len(layer_nods):
+        if index in [0, len(layer_nods)]:
             previous_layer = current_layer
             continue
         globals()['W{}'.format(index)] = parameters['W{}'.format(index)]
@@ -152,37 +152,25 @@ def forward_propagation(X, parameters, keep_prob):
                 globals()['Z{}'.format(index)] = \
                     tf.add(tf.matmul(globals()['W{}'.format(index)], X),
                            globals()['b{}'.format(index)])
-                # e.g.:# A1 = relu(Z1)
-                # globals()['A{}'.format(index)] = tf.nn.tanh(globals()['Z{}'.format(index)])
-                #globals()['A{}'.format(index)] = tf.nn.leaky_relu(globals()['Z{}'.format(index)], alpha=0.02)
-                #globals()['A{}'.format(index)] = tf.nn.selu(globals()['Z{}'.format(index)])
-
-
-                #with regularization
-                globals()['relu_output{}'.format(index)] = tf.nn.leaky_relu(globals()['Z{}'.format(index)], alpha=0.02)
-                globals()['A{}'.format(index)] = tf.nn.dropout(globals()['relu_output{}'.format(index)], keep_prob)
-
-
-
             else:
                 # e.g.: Z2 = np.dot(W2, a1) + b2
                 globals()['Z{}'.format(index)] = \
                     tf.add(tf.matmul(globals()['W{}'.format(index)],
                                      globals()['A{}'.format(index - 1)]),
                            globals()['b{}'.format(index)])
-                # e.g.:# A2 = relu(Z2)
-                #globals()['A{}'.format(index)] =
-                #  tf.nn.relu(globals()['Z{}'.format(index)])
-                #globals()['A{}'.format(index)] = tf.nn.leaky_relu(globals()['Z{}'.format(index)], alpha=0.02)
-                #globals()['A{}'.format(index)] = tf.nn.selu(globals()['Z{}'.format(index)])
-
-                # with regularization
-                globals()['relu_output{}'.format(index)] = tf.nn.leaky_relu(globals()['Z{}'.format(index)], alpha=0.02)
-                globals()['A{}'.format(index)] = tf.nn.dropout(globals()['relu_output{}'.format(index)], keep_prob)
+            # e.g.:# A1 = relu(Z1)
+            # globals()['A{}'.format(index)] = tf.nn.tanh(globals()['Z{}'.format(index)])
+            #globals()['A{}'.format(index)] = tf.nn.leaky_relu(globals()['Z{}'.format(index)], alpha=0.02)
+            #globals()['A{}'.format(index)] = tf.nn.selu(globals()['Z{}'.format(index)])
 
 
-    final_Z = globals()['Z{}'.format(len(layer_nods) - 1)]
-    return final_Z
+            #with regularization
+            globals()['relu_output{}'.format(index)] = tf.nn.leaky_relu(globals()['Z{}'.format(index)], alpha=0.02)
+            globals()['A{}'.format(index)] = tf.nn.dropout(globals()['relu_output{}'.format(index)], keep_prob)
+
+
+
+    return globals()['Z{}'.format(len(layer_nods) - 1)]
 
 
 def compute_cost(final_Z, Y):
@@ -201,15 +189,13 @@ def compute_cost(final_Z, Y):
     logits = tf.transpose(final_Z)
     labels = tf.transpose(Y)
 
-    # calculating the cost
-
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels))
-
     # Cost function using L2 Regularization
     # regularizer = tf.nn.l2_loss(weights)
     # loss = tf.reduce_mean(loss + beta * regularizer)
 
-    return cost
+    return tf.reduce_mean(
+        tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
+    )
 
 def model(X_train, Y_train, X_test, Y_test, seg_size, learning_rate=0.0001,
           num_epochs=1500, minibatch_size=32, print_cost=True):
@@ -264,7 +250,7 @@ def model(X_train, Y_train, X_test, Y_test, seg_size, learning_rate=0.0001,
 
             epoch_cost = 0.  # Defines a cost related to an epoch
             num_minibatches = int(m / minibatch_size)  # number of minibatches of size minibatch_size in the train set
-            seed = seed + 1
+            seed += 1
             minibatches = random_mini_batches(X_train, Y_train, minibatch_size, seed)
 
             for minibatch in minibatches:
@@ -291,7 +277,7 @@ def model(X_train, Y_train, X_test, Y_test, seg_size, learning_rate=0.0001,
         plt.plot(np.squeeze(costs))
         plt.ylabel('cost')
         plt.xlabel('iterations (per tens)')
-        plt.title("Learning rate =" + str(learning_rate))
+        plt.title(f"Learning rate ={str(learning_rate)}")
         plt.show()
 
         # lets save the parameters in a variable

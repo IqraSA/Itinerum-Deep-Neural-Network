@@ -7,6 +7,7 @@ Please find the 'points.csv' and 'labels.csv' on Github and import them into a P
 change the code to be able to read all the data from csv files directly.
 """
 
+
 import psycopg2
 import numpy as np
 import time
@@ -37,15 +38,15 @@ num_channels = 3
 ##number of conv layers?
 num_layers = 10
 ##size of each filter (i.e. number of pixels per width or height)
-filters_size = np.repeat([k for k in range(4,0,-2)],5).tolist()
+filters_size = np.repeat(list(range(4,0,-2)), 5).tolist()
 ##number of filters for each layer
-num_filters = np.repeat([k for k in range(96,384,70)],2).tolist()
+num_filters = np.repeat(list(range(96,384,70)), 2).tolist()
 #define the stride size for each CONV2D layer
-num_stride_conv2d = [1 for k in range(0,10)]
+num_stride_conv2d = [1 for _ in range(10)]
 #define the stride size for each MAXPOOL layer
-num_stride_maxpool = np.tile([k for k in range(4,0,-2)],5).tolist()
+num_stride_maxpool = np.tile(list(range(4,0,-2)), 5).tolist()
 ##Define the weights
-weights = list()
+weights = []
 for index, f in enumerate(filters_size):
     if index == 0:
         weights.append([f,f,num_channels,num_filters[index]])
@@ -389,46 +390,33 @@ def forward_propagation(X, parameters):
 
     # Retrieve the parameters from the dictionary "parameters"
     for index, param in enumerate(parameters):
+        globals()['W{}'.format(index + 1)] = parameters['W{}'.format(index + 1)]
+
         #print(param)
         #print(index, 'index is')
         #print('num_stride_conv2d:',num_stride_conv2d[index])
         #print('num_stride_maxpool:', num_stride_maxpool[index])
         # Retrieve the parameters from the dictionary "parameters"
         if index == 0:
-            globals()['W{}'.format(index + 1)] = parameters['W{}'.format(index + 1)]
-
             # CONV2D: stride from num_stride_conv2d, padding 'SAME'
             globals()['Z{}'.format(index + 1)] = tf.nn.conv2d(X, globals()['W{}'.format(index + 1)]
                                                               , strides=[1, num_stride_conv2d[index], num_stride_conv2d[index], 1],
                                                               padding='SAME')
 
-            # RELU
-            globals()['A{}'.format(index + 1)]  = tf.nn.relu(globals()['Z{}'.format(index + 1)])
-
-            # MAXPOOL: window size form stride from num_stride_maxpool, sride is the same size as window size, padding 'SAME'
-            globals()['P{}'.format(index + 1)] = tf.nn.max_pool(globals()['A{}'.format(index + 1)], ksize=[1, num_stride_maxpool[index], num_stride_maxpool[index], 1],
-                                strides=[1, num_stride_maxpool[index], num_stride_maxpool[index], 1],
-                                padding='SAME')
         else:
-            globals()['W{}'.format(index + 1)] = parameters['W{}'.format(index + 1)]
-
             # CONV2D: stride from num_stride_conv2d, padding 'SAME'
             globals()['Z{}'.format(index + 1)] = tf.nn.conv2d(globals()['P{}'.format(index)], globals()['W{}'.format(index + 1)]
                                                               , strides=[1, num_stride_conv2d[index],
                                                                          num_stride_conv2d[index], 1],
                                                               padding='SAME')
 
-            # RELU
-            globals()['A{}'.format(index + 1)] = tf.nn.relu(globals()['Z{}'.format(index + 1)])
+        # RELU
+        globals()['A{}'.format(index + 1)]  = tf.nn.relu(globals()['Z{}'.format(index + 1)])
 
-            # MAXPOOL: window size form stride from num_stride_maxpool, sride is the same size as window size, padding 'SAME'
-            globals()['P{}'.format(index + 1)] = tf.nn.max_pool(globals()['A{}'.format(index + 1)],
-                                                                ksize=[1, num_stride_maxpool[index],
-                                                                       num_stride_maxpool[index], 1],
-                                                                strides=[1, num_stride_maxpool[index],
-                                                                         num_stride_maxpool[index], 1],
-                                                                padding='SAME')
-
+        # MAXPOOL: window size form stride from num_stride_maxpool, sride is the same size as window size, padding 'SAME'
+        globals()['P{}'.format(index + 1)] = tf.nn.max_pool(globals()['A{}'.format(index + 1)], ksize=[1, num_stride_maxpool[index], num_stride_maxpool[index], 1],
+                            strides=[1, num_stride_maxpool[index], num_stride_maxpool[index], 1],
+                            padding='SAME')
     # FLATTEN
     globals()['P{}'.format(len(parameters))] = tf.contrib.layers.flatten(globals()['P{}'.format(len(parameters))])
 
@@ -436,9 +424,7 @@ def forward_propagation(X, parameters):
     # 6 neurons in output layer. Hint: one of the arguments should be "activation_fn=None"
     globals()['Z{}'.format(len(parameters) + 1)] = tf.contrib.layers.fully_connected(globals()['P{}'.format(len(parameters))], num_classes, activation_fn=None)
 
-    final_Z = globals()['Z{}'.format(len(parameters) + 1)]
-
-    return final_Z
+    return globals()['Z{}'.format(len(parameters) + 1)]
 
 
 ####################Computing Cost with softmax_cross_entropy in tensorflow#########################
@@ -454,9 +440,9 @@ def compute_cost(final_Z, Y):
     cost - Tensor of the cost function
     """
 
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=final_Z, labels=Y))
-
-    return cost
+    return tf.reduce_mean(
+        tf.nn.softmax_cross_entropy_with_logits(logits=final_Z, labels=Y)
+    )
 
 ####################Creates a list of random minibatches from (X, Y)#########################
 def random_mini_batches(X, Y, mini_batch_size=64, seed=0):
@@ -488,7 +474,7 @@ def random_mini_batches(X, Y, mini_batch_size=64, seed=0):
     # Step 2: Partition (shuffled_X, shuffled_Y). Minus the end case.
     num_complete_minibatches = math.floor(
         m / mini_batch_size)  # number of mini batches of size mini_batch_size in your partitionning
-    for k in range(0, num_complete_minibatches):
+    for k in range(num_complete_minibatches):
         mini_batch_X = shuffled_X[:, k * mini_batch_size: k * mini_batch_size + mini_batch_size]
         mini_batch_Y = shuffled_Y[:, k * mini_batch_size: k * mini_batch_size + mini_batch_size]
         mini_batch = (mini_batch_X, mini_batch_Y)
