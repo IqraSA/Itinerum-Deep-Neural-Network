@@ -127,50 +127,48 @@ def segmentation(points, seg_size,num_points_per_trip):
     points_segmented = pd.DataFrame()
     #give same size for each segment
     for index, row in num_points_per_trip.iterrows():
-        segment_counter = 0
         trip = points.loc[(points['uuid'] == row[0]) & (points['trip_id'] == row[1])]
         num_segs = math.ceil(row[2]/seg_size)
 
         padding = (-trip.shape[0]) % seg_size
         splitted_trip= np.array_split(np.concatenate((trip, np.zeros((padding, trip.shape[1])))), num_segs)
-        for j in range(0, num_segs):
-            segment_counter += 1
+        for segment_counter, j in enumerate(range(num_segs), start=1):
             trip = pd.DataFrame(data = splitted_trip[j],  columns=points.columns.values)
             trip = trip.assign(segment_id=segment_counter)
             points_segmented = points_segmented.append(trip, ignore_index=False)
 
-        #for loop for splitting the points of a trip into seprate 'seg_size' segments.
-        # for j in range(1,num_segs + 1):
-        #
-        #     segment_counter += 1
-        #
-        #     b_loc = (j-1)*seg_size
-        #     e_loc = (j-1)*seg_size + (seg_size)
-        #     if j == num_segs and row[2]%seg_size != 0:
-        #         print('j is', j)
-        #         print('segment_counter is', segment_counter)
-        #         e_loc = row[2]
-        #         trip = trip.assign(segment_id=segment_counter)
-        #         temp = pd.DataFrame(0, index=np.arange(seg_size), columns=list(trip.columns.values))
-        #         print(temp.shape)
-        #         print(b_loc,e_loc)
-        #         print(0,row[2]%seg_size)
-        #         temp.iloc[0:row[2]%seg_size] = trip.iloc[b_loc:e_loc]
-        #
-        #         #print('temp is', temp)
-        #         #print('trip is', trip)
-        #         points_segmented = points_segmented.append(temp, ignore_index=False)
-        #         print(points_segmented.shape)
-        #         #print('points_segmented is:', points_segmented[b_loc:e_loc])
-        #         print(temp)
-        #         time.sleep(20)
-        #
-        #         continue
-        #
-        #     trip = trip.assign(segment_id=segment_counter)
-        #     temp = pd.DataFrame(0, index=np.arange(seg_size), columns=list(trip.columns.values))
-        #     temp.iloc[0:row[2] % seg_size] = trip.iloc[b_loc:e_loc]
-        #     points_segmented = points_segmented.append(trip.iloc[b_loc:e_loc], ignore_index=False)
+            #for loop for splitting the points of a trip into seprate 'seg_size' segments.
+            # for j in range(1,num_segs + 1):
+            #
+            #     segment_counter += 1
+            #
+            #     b_loc = (j-1)*seg_size
+            #     e_loc = (j-1)*seg_size + (seg_size)
+            #     if j == num_segs and row[2]%seg_size != 0:
+            #         print('j is', j)
+            #         print('segment_counter is', segment_counter)
+            #         e_loc = row[2]
+            #         trip = trip.assign(segment_id=segment_counter)
+            #         temp = pd.DataFrame(0, index=np.arange(seg_size), columns=list(trip.columns.values))
+            #         print(temp.shape)
+            #         print(b_loc,e_loc)
+            #         print(0,row[2]%seg_size)
+            #         temp.iloc[0:row[2]%seg_size] = trip.iloc[b_loc:e_loc]
+            #
+            #         #print('temp is', temp)
+            #         #print('trip is', trip)
+            #         points_segmented = points_segmented.append(temp, ignore_index=False)
+            #         print(points_segmented.shape)
+            #         #print('points_segmented is:', points_segmented[b_loc:e_loc])
+            #         print(temp)
+            #         time.sleep(20)
+            #
+            #         continue
+            #
+            #     trip = trip.assign(segment_id=segment_counter)
+            #     temp = pd.DataFrame(0, index=np.arange(seg_size), columns=list(trip.columns.values))
+            #     temp.iloc[0:row[2] % seg_size] = trip.iloc[b_loc:e_loc]
+            #     points_segmented = points_segmented.append(trip.iloc[b_loc:e_loc], ignore_index=False)
     #drop trips with na or zero values in 'uuid','trip_id','segment_id'
     points_segmented = points_segmented.dropna(subset=['uuid','trip_id','segment_id'])
     points_segmented = points_segmented[(points_segmented['uuid'] != 0) &
@@ -324,13 +322,10 @@ def flattening_data(X_orig):
     # print(X_orig)
     # time.sleep(100)
     print('X_orig.shape[0]', X_orig.shape[0])
-    #X_train_flatten = X_orig.flatten('F').T
-
-    X_train_flatten = X_orig.reshape(X_orig.shape[0], -1).T
     #print('X_orig',type(X_orig))
     #print('X_train_flatten',X_train_flatten)
 
-    return (X_train_flatten)
+    return X_orig.reshape(X_orig.shape[0], -1).T
 
 #####################split data to train-test######################
 # def split_train_test(X_flatten, Y_orig):
@@ -404,7 +399,7 @@ def initialize_parameters(layer_nods,num_classes,seg_size):
     parameters = {}
 
     for index, current_layer in enumerate(layer_nods):
-        if index == 0 or index == len(layer_nods):
+        if index in [0, len(layer_nods)]:
             previous_layer = current_layer
             continue
         # declare 'W's
@@ -439,7 +434,7 @@ def forward_propagation(X, parameters):
 
     # Retrieve the parameters from the dictionary "parameters"
     for index, current_layer in enumerate(layer_nods):
-        if index == 0 or index == len(layer_nods):
+        if index in [0, len(layer_nods)]:
             previous_layer = current_layer
             continue
         globals()['W{}'.format(index)] = parameters['W{}'.format(index)]
@@ -455,20 +450,16 @@ def forward_propagation(X, parameters):
                 globals()['Z{}'.format(index)] = \
                     tf.add(tf.matmul(globals()['W{}'.format(index)], X),
                            globals()['b{}'.format(index)])
-                # e.g.:# A1 = relu(Z1)
-                globals()['A{}'.format(index)] = tf.nn.relu(globals()['Z{}'.format(index)])
-
             else:
                 # e.g.: Z2 = np.dot(W2, a1) + b2
                 globals()['Z{}'.format(index)] = \
                     tf.add(tf.matmul(globals()['W{}'.format(index)],
                                      globals()['A{}'.format(index - 1)]),
                            globals()['b{}'.format(index)])
-                # e.g.:# A2 = relu(Z2)
-                globals()['A{}'.format(index)] = tf.nn.relu(globals()['Z{}'.format(index)])
+            # e.g.:# A1 = relu(Z1)
+            globals()['A{}'.format(index)] = tf.nn.relu(globals()['Z{}'.format(index)])
 
-    final_Z = globals()['Z{}'.format(len(layer_nods) - 1)]
-    return final_Z
+    return globals()['Z{}'.format(len(layer_nods) - 1)]
 
 ####################Computing Cost with softmax_cross_entropy in tensorflow#########################
 def compute_cost(final_Z, Y):
@@ -487,10 +478,9 @@ def compute_cost(final_Z, Y):
     logits = tf.transpose(final_Z)
     labels = tf.transpose(Y)
 
-    #calculating the cost
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels))
-
-    return cost
+    return tf.reduce_mean(
+        tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
+    )
 
 ####################Creates a list of random minibatches from (X, Y)#########################
 def random_mini_batches(X, Y, mini_batch_size=64, seed=0):
@@ -522,7 +512,7 @@ def random_mini_batches(X, Y, mini_batch_size=64, seed=0):
     # Step 2: Partition (shuffled_X, shuffled_Y). Minus the end case.
     num_complete_minibatches = math.floor(
         m / mini_batch_size)  # number of mini batches of size mini_batch_size in your partitionning
-    for k in range(0, num_complete_minibatches):
+    for k in range(num_complete_minibatches):
         mini_batch_X = shuffled_X[:, k * mini_batch_size: k * mini_batch_size + mini_batch_size]
         mini_batch_Y = shuffled_Y[:, k * mini_batch_size: k * mini_batch_size + mini_batch_size]
         mini_batch = (mini_batch_X, mini_batch_Y)
@@ -552,18 +542,7 @@ def predict(X, parameters,seg_size):
     W6 = tf.convert_to_tensor(parameters["W6"])
     b6 = tf.convert_to_tensor(parameters["b6"])
 
-    params = {"W1": W1,
-              "b1": b1,
-              "W2": W2,
-              "b2": b2,
-              "W3": W3,
-              "b3": b3,
-              "W3": W4,
-              "b3": b4,
-              "W3": W5,
-              "b3": b5,
-              "W3": W6,
-              "b3": b6}
+    params = {"W1": W1, "b1": b1, "W2": W2, "b2": b2, "W3": W6, "b3": b6}
 
     x = tf.placeholder("float", [3*seg_size, 1])
 
@@ -571,9 +550,7 @@ def predict(X, parameters,seg_size):
     p = tf.argmax(z6)
 
     sess = tf.Session()
-    prediction = sess.run(p, feed_dict={x: X})
-
-    return prediction
+    return sess.run(p, feed_dict={x: X})
 
 ####################Training the neural net model in Tensorflow#########################
 def model(X_train, Y_train, X_test, Y_test, seg_size, learning_rate=0.0001,
